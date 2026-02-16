@@ -1,43 +1,69 @@
-const express = require('express')
-const app = express()
+require("dotenv").config(); // ✅ 1x bovenaan
 
-app.set("view engine", "ejs")
+const express = require("express");
+const { MongoClient, ServerApiVersion } = require("mongodb");
 
-app.use(express.static('static'))
-app.use(express.json())
-app.use(express.urlencoded({ extended: true }))
+const app = express();
+const uri = process.env.MONGODB_URI;
 
-const data = []
+// Mongo client
+const client = new MongoClient(uri, {
+  serverApi: {
+    version: ServerApiVersion.v1,
+    strict: true,
+    deprecationErrors: true,
+  },
+});
 
-app.get('/', (req, res) => {
-  res.send('Hello World')
-})
+// Middleware
+app.set("view engine", "ejs");
+app.use(express.static("static"));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-app.get('/profile/:username', (req, res) => {
-  const username = req.params.username
-  res.send(`Profielpagina van ${username}`)
-})
+// MongoDB connect (1x bij server start)
+async function connectDB() {
+  try {
+    await client.connect();
+    await client.db("admin").command({ ping: 1 });
+    console.log("✅ Connected to MongoDB");
+  } catch (err) {
+    console.error("❌ MongoDB connection failed:", err);
+  }
+}
 
-app.get('/detail', (req, res) => {
+connectDB();
 
-  res.render("detail", {data: data})
-})
+// Testdata (tijdelijk)
+const data = [];
 
-app.post('/detail', (req, res) => {
-  console.log(req.body)
+// Routes
+app.get("/", (req, res) => {
+  res.send("Hello World");
+});
 
+app.get("/profile/:username", (req, res) => {
+  res.send(`Profielpagina van ${req.params.username}`);
+});
+
+app.get("/detail", (req, res) => {
+  res.render("detail", { data });
+});
+
+app.post("/detail", (req, res) => {
   data.push({
     title: req.body.title,
-    description: req.body.description
-  })
+    description: req.body.description,
+  });
+  res.redirect("/detail");
+});
 
-  res.redirect('/detail')
-})
-
+// 404
 app.use((req, res) => {
-  res.status(404).send('404 Not Found')
-})
+  res.status(404).send("404 Not Found");
+});
 
+// Server
 app.listen(3000, () => {
-  console.log('Server is running on http://localhost:3000')
-})
+  console.log("🚀 Server running on http://localhost:3000");
+});
